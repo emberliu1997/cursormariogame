@@ -21,6 +21,18 @@ jobs:
         run: |
           echo "🚀 开始部署到 AI Builders..."
           
+          # 检查 AI_BUILDER_TOKEN 是否已设置
+          if [ -z "$AI_BUILDER_TOKEN" ]; then
+            echo "❌ 错误: AI_BUILDER_TOKEN secret 未设置！"
+            echo "📝 请访问以下链接设置 Secret:"
+            echo "   https://github.com/${{ github.repository }}/settings/secrets/actions"
+            echo "   Name: AI_BUILDER_TOKEN"
+            echo "   Value: sk_564e0ec7_05b965ec7494ea05a998e879a85358c4456f"
+            exit 1
+          fi
+          
+          echo "✅ AI_BUILDER_TOKEN 已配置"
+          
           response=$(curl -s -X POST "https://space.ai-builders.com/backend/v1/deployments" \
             -H "Authorization: Bearer ${AI_BUILDER_TOKEN}" \
             -H "Content-Type: application/json" \
@@ -33,8 +45,14 @@ jobs:
           
           echo "部署响应: $response"
           
-          status=$(echo $response | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
-          url=$(echo $response | grep -o '"public_url":"[^"]*"' | cut -d'"' -f4)
+          # 检查响应是否包含错误
+          if echo "$response" | grep -q '"error"'; then
+            echo "❌ API 返回错误: $response"
+            exit 1
+          fi
+          
+          status=$(echo $response | grep -o '"status":"[^"]*"' | cut -d'"' -f4 || echo "")
+          url=$(echo $response | grep -o '"public_url":"[^"]*"' | cut -d'"' -f4 || echo "")
           
           if [ "$status" = "queued" ] || [ "$status" = "active" ]; then
             echo "✅ 部署请求已提交！"
