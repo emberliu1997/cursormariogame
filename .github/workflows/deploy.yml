@@ -33,15 +33,25 @@ jobs:
           
           echo "✅ AI_BUILDER_TOKEN 已配置"
           
+          # 构建 JSON 数据
+          REPO_URL="https://github.com/${{ github.repository }}.git"
+          JSON_DATA=$(cat <<EOF
+{
+  "repo_url": "${REPO_URL}",
+  "service_name": "ember-chat",
+  "branch": "main",
+  "port": 3000
+}
+EOF
+)
+          
+          echo "📤 发送部署请求..."
+          echo "仓库 URL: ${REPO_URL}"
+          
           response=$(curl -s -X POST "https://space.ai-builders.com/backend/v1/deployments" \
             -H "Authorization: Bearer ${AI_BUILDER_TOKEN}" \
             -H "Content-Type: application/json" \
-            -d '{
-              "repo_url": "https://github.com/${{ github.repository }}.git",
-              "service_name": "ember-chat",
-              "branch": "main",
-              "port": 3000
-            }')
+            -d "${JSON_DATA}")
           
           echo "部署响应: $response"
           
