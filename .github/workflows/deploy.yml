@@ -1,0 +1,53 @@
+name: Deploy to AI Builders
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to AI Builders Space
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to AI Builders
+        env:
+          AI_BUILDER_TOKEN: ${{ secrets.AI_BUILDER_TOKEN }}
+        run: |
+          echo "🚀 开始部署到 AI Builders..."
+          
+          response=$(curl -s -X POST "https://space.ai-builders.com/backend/v1/deployments" \
+            -H "Authorization: Bearer ${AI_BUILDER_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "repo_url": "https://github.com/${{ github.repository }}.git",
+              "service_name": "ember-chat",
+              "branch": "main",
+              "port": 3000
+            }')
+          
+          echo "部署响应: $response"
+          
+          status=$(echo $response | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+          url=$(echo $response | grep -o '"public_url":"[^"]*"' | cut -d'"' -f4)
+          
+          if [ "$status" = "queued" ] || [ "$status" = "active" ]; then
+            echo "✅ 部署请求已提交！"
+            echo "🌐 应用 URL: $url"
+            echo "⏳ 请等待 5-10 分钟让部署完成"
+          else
+            echo "❌ 部署失败: $response"
+            exit 1
+          fi
+
+      - name: Add deployment badge
+        if: success()
+        run: |
+          echo "✅ 部署工作流已成功触发"
+          echo "📝 你可以在 GitHub 仓库的 Actions 标签页查看部署状态"
+

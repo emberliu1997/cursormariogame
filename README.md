@@ -1,36 +1,98 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ChatGPT Clone - AI Chat Application
 
-## Getting Started
+一个功能完整的 ChatGPT 克隆应用，使用 Next.js 构建，支持多模型选择和消息编辑功能。
 
-First, run the development server:
+## ✨ 功能特性
+
+- 💬 **智能对话** - 支持 Grok 4 Fast 和 SecondMind Agent 两种 AI 模型
+- ✏️ **消息编辑** - 可以随时编辑已发送的消息，AI 会重新回答
+- 📝 **智能标题** - 自动根据整个对话生成摘要标题
+- 🎨 **现代化 UI** - 干净、现代、可访问的用户界面
+- 📱 **多行输入** - 支持 Shift+Enter 换行，Enter 发送
+
+## 🚀 在线访问
+
+**生产环境**: [https://ember-chat.ai-builders.space/](https://ember-chat.ai-builders.space/)
+
+## 📦 本地开发
+
+### 安装依赖
+
+```bash
+npm install
+```
+
+### 运行开发服务器
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+打开 [http://localhost:3000](http://localhost:3000) 查看应用。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 环境变量
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+创建 `.env.local` 文件：
 
-## Learn More
+```env
+AI_BUILDER_TOKEN=your_token_here
+```
 
-To learn more about Next.js, take a look at the following resources:
+## 🔄 自动部署
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+本项目配置了 GitHub Actions 自动部署。每次推送到 `main` 分支时，会自动触发部署。
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 部署状态
 
-## Deploy on Vercel
+[![Deploy Status](https://github.com/emberliu1997/cursormariogame/actions/workflows/deploy.yml/badge.svg)](https://github.com/emberliu1997/cursormariogame/actions/workflows/deploy.yml)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 手动触发部署
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. 访问 GitHub 仓库的 **Actions** 标签页
+2. 选择 **Deploy to AI Builders** 工作流
+3. 点击 **Run workflow** 按钮
+4. 选择分支（通常是 `main`）
+5. 点击 **Run workflow** 确认
+
+### 设置 GitHub Secrets（首次设置）
+
+1. 访问你的 GitHub 仓库：https://github.com/emberliu1997/cursormariogame
+2. 点击 **Settings**（设置）
+3. 在左侧菜单选择 **Secrets and variables** → **Actions**
+4. 点击 **New repository secret**
+5. 添加以下 secret：
+   - **Name**: `AI_BUILDER_TOKEN`
+   - **Value**: `sk_564e0ec7_05b965ec7494ea05a998e879a85358c4456f`
+6. 点击 **Add secret**
+
+完成设置后，每次推送代码到 `main` 分支都会自动部署！
+
+## 🛠️ 技术栈
+
+- **框架**: Next.js 16
+- **语言**: TypeScript
+- **样式**: Tailwind CSS
+- **AI API**: AI Builders API
+- **部署**: AI Builders Space (Koyeb)
+
+## 📁 项目结构
+
+```
+chatgpt-clone/
+├── app/
+│   ├── api/
+│   │   └── chat/          # API 路由
+│   ├── components/         # React 组件
+│   ├── globals.css         # 全局样式
+│   ├── layout.tsx          # 根布局
+│   └── page.tsx           # 主页面
+├── .github/
+│   └── workflows/         # GitHub Actions 工作流
+├── Dockerfile             # Docker 配置
+└── package.json           # 项目依赖
+
+```
+
+## 📝 许可证
+
+MIT License
