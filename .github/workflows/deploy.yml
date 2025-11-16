@@ -19,63 +19,81 @@ jobs:
         env:
           AI_BUILDER_TOKEN: ${{ secrets.AI_BUILDER_TOKEN }}
         run: |
+          set -e  # 遇到错误立即退出
+          
           echo "🚀 开始部署到 AI Builders..."
+          echo "📅 时间: $(date)"
           
           # 检查 AI_BUILDER_TOKEN 是否已设置
           if [ -z "$AI_BUILDER_TOKEN" ]; then
             echo "❌ 错误: AI_BUILDER_TOKEN secret 未设置！"
             echo "📝 请访问以下链接设置 Secret:"
             echo "   https://github.com/${{ github.repository }}/settings/secrets/actions"
-            echo "   Name: AI_BUILDER_TOKEN"
-            echo "   Value: sk_564e0ec7_05b965ec7494ea05a998e879a85358c4456f"
             exit 1
           fi
           
-          echo "✅ AI_BUILDER_TOKEN 已配置"
+          echo "✅ AI_BUILDER_TOKEN 已配置 (长度: ${#AI_BUILDER_TOKEN} 字符)"
           
-          # 构建 JSON 数据
+          # 准备部署数据
           REPO_URL="https://github.com/${{ github.repository }}.git"
-          JSON_DATA=$(cat <<EOF
-{
-  "repo_url": "${REPO_URL}",
-  "service_name": "ember-chat",
-  "branch": "main",
-  "port": 3000
-}
-EOF
-)
+          echo "📦 仓库 URL: ${REPO_URL}"
+          
+          # 使用 printf 构建 JSON（更可靠）
+          JSON_PAYLOAD=$(printf '{"repo_url":"%s","service_name":"ember-chat","branch":"main","port":3000}' "${REPO_URL}")
           
           echo "📤 发送部署请求..."
-          echo "仓库 URL: ${REPO_URL}"
+          echo "请求数据: ${JSON_PAYLOAD}"
           
-          response=$(curl -s -X POST "https://space.ai-builders.com/backend/v1/deployments" \
+          # 发送请求并保存响应
+          response=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X POST "https://space.ai-builders.com/backend/v1/deployments" \
             -H "Authorization: Bearer ${AI_BUILDER_TOKEN}" \
             -H "Content-Type: application/json" \
-            -d "${JSON_DATA}")
+            -d "${JSON_PAYLOAD}")
           
-          echo "部署响应: $response"
+          # 分离响应体和 HTTP 状态码
+          http_code=$(echo "$response" | grep "HTTP_CODE:" | cut -d: -f2)
+          response_body=$(echo "$response" | sed '/HTTP_CODE:/d')
+          
+          echo "📥 HTTP 状态码: ${http_code}"
+          echo "📥 响应内容: ${response_body}"
+          
+          # 检查 HTTP 状态码
+          if [ "$http_code" != "200" ]; then
+            echo "❌ HTTP 请求失败，状态码: ${http_code}"
+            echo "响应: ${response_body}"
+            exit 1
+          fi
           
           # 检查响应是否包含错误
-          if echo "$response" | grep -q '"error"'; then
-            echo "❌ API 返回错误: $response"
+          if echo "$response_body" | grep -qi '"error"'; then
+            echo "❌ API 返回错误: ${response_body}"
             exit 1
           fi
           
-          status=$(echo $response | grep -o '"status":"[^"]*"' | cut -d'"' -f4 || echo "")
-          url=$(echo $response | grep -o '"public_url":"[^"]*"' | cut -d'"' -f4 || echo "")
+          # 提取状态和 URL
+          status=$(echo "$response_body" | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4 || echo "")
+          url=$(echo "$response_body" | grep -o '"public_url":"[^"]*"' | head -1 | cut -d'"' -f4 || echo "")
+          
+          echo "📊 解析结果:"
+          echo "  状态: ${status:-未找到}"
+          echo "  URL: ${url:-未找到}"
           
           if [ "$status" = "queued" ] || [ "$status" = "active" ]; then
-            echo "✅ 部署请求已提交！"
-            echo "🌐 应用 URL: $url"
+            echo ""
+            echo "✅ 部署请求已成功提交！"
+            echo "🌐 应用 URL: ${url}"
             echo "⏳ 请等待 5-10 分钟让部署完成"
+            echo ""
+            echo "📝 你可以在以下链接查看部署状态:"
+            echo "   https://ember-chat.ai-builders.space/"
           else
-            echo "❌ 部署失败: $response"
+            echo "❌ 部署失败，状态: ${status}"
+            echo "完整响应: ${response_body}"
             exit 1
           fi
 
-      - name: Add deployment badge
+      - name: Deployment Summary
         if: success()
         run: |
-          echo "✅ 部署工作流已成功触发"
-          echo "📝 你可以在 GitHub 仓库的 Actions 标签页查看部署状态"
-
+          echo "✅ 部署工作流执行成功"
+          echo "📝 查看部署状态: https://github.com/${{ github.repository }}/actions"
