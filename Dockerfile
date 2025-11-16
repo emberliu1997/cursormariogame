@@ -29,6 +29,7 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 # Copy standalone output
+# Next.js standalone mode preserves the project directory structure
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
@@ -39,6 +40,7 @@ EXPOSE 3000
 
 ENV HOSTNAME="0.0.0.0"
 
-# Use shell form to ensure PORT environment variable is properly expanded
-CMD sh -c "node server.js"
+# Next.js standalone mode creates server.js in a subdirectory matching the project path
+# We need to find and run it from the correct location
+CMD sh -c "cd \$(find . -type f -name 'server.js' -path '*/standalone/*' | head -1 | xargs dirname) && node server.js"
 
