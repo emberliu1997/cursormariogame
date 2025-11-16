@@ -19,90 +19,84 @@ jobs:
         env:
           AI_BUILDER_TOKEN: ${{ secrets.AI_BUILDER_TOKEN }}
         run: |
-          set -e  # 遇到错误立即退出
-          
           echo "🚀 开始部署到 AI Builders..."
-          echo "📅 时间: $(date)"
           
           # 检查 AI_BUILDER_TOKEN 是否已设置
           if [ -z "$AI_BUILDER_TOKEN" ]; then
             echo "❌ 错误: AI_BUILDER_TOKEN secret 未设置！"
-            echo "📝 请访问以下链接设置 Secret:"
-            echo "   https://github.com/${{ github.repository }}/settings/secrets/actions"
+            echo "📝 请访问: https://github.com/${{ github.repository }}/settings/secrets/actions"
             exit 1
           fi
           
-          echo "✅ AI_BUILDER_TOKEN 已配置 (长度: ${#AI_BUILDER_TOKEN} 字符)"
+          echo "✅ AI_BUILDER_TOKEN 已配置"
           
           # 准备部署数据
           REPO_URL="https://github.com/${{ github.repository }}.git"
-          echo "📦 仓库 URL: ${REPO_URL}"
+          echo "📦 仓库: ${REPO_URL}"
           
-          # 使用 printf 构建 JSON（更可靠）
+          # 构建 JSON payload
           JSON_PAYLOAD=$(printf '{"repo_url":"%s","service_name":"ember-chat","branch":"main","port":3000}' "${REPO_URL}")
           
           echo "📤 发送部署请求..."
-          echo "请求数据: ${JSON_PAYLOAD}"
           
-          # 发送请求并保存响应
+          # 发送请求
           response=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X POST "https://space.ai-builders.com/backend/v1/deployments" \
             -H "Authorization: Bearer ${AI_BUILDER_TOKEN}" \
             -H "Content-Type: application/json" \
-            -d "${JSON_PAYLOAD}")
+            -d "${JSON_PAYLOAD}" || echo "CURL_ERROR")
           
-          # 分离响应体和 HTTP 状态码
-          http_code=$(echo "$response" | grep "HTTP_CODE:" | cut -d: -f2)
-          response_body=$(echo "$response" | sed '/HTTP_CODE:/d')
+          # 检查 curl 是否成功
+          if echo "$response" | grep -q "CURL_ERROR"; then
+            echo "❌ curl 请求失败"
+            exit 1
+          fi
+          
+          # 分离 HTTP 状态码和响应体
+          http_code=$(echo "$response" | grep "HTTP_CODE:" | cut -d: -f2 || echo "")
+          response_body=$(echo "$response" | sed '/HTTP_CODE:/d' || echo "")
           
           echo "📥 HTTP 状态码: ${http_code}"
-          echo "📥 响应内容: ${response_body}"
+          echo "📥 响应: ${response_body}"
           
           # 检查 HTTP 状态码
-          if [ "$http_code" != "200" ]; then
-            echo "❌ HTTP 请求失败，状态码: ${http_code}"
-            echo "响应: ${response_body}"
+          if [ -z "$http_code" ] || [ "$http_code" != "200" ]; then
+            echo "❌ HTTP 请求失败，状态码: ${http_code:-未知}"
             exit 1
           fi
           
           # 检查响应是否包含错误
           if echo "$response_body" | grep -qi '"error"'; then
-            echo "❌ API 返回错误: ${response_body}"
+            echo "❌ API 返回错误"
+            echo "$response_body"
             exit 1
           fi
           
-          # 提取状态和 URL（使用更宽松的匹配）
-          status=$(echo "$response_body" | grep -oE '"status"\s*:\s*"[^"]*"' | head -1 | grep -oE '"[^"]*"' | head -1 | tr -d '"' || echo "")
-          url=$(echo "$response_body" | grep -oE '"public_url"\s*:\s*"[^"]*"' | head -1 | grep -oE '"[^"]*"' | head -1 | tr -d '"' || echo "")
+          # 尝试提取状态（使用多种方法）
+          status=""
+          if echo "$response_body" | grep -q '"status"'; then
+            status=$(echo "$response_body" | grep -o '"status"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"status"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/' || echo "")
+          fi
           
-          echo "📊 解析结果:"
-          echo "  状态: ${status:-未找到}"
-          echo "  URL: ${url:-未找到}"
-          
-          # 如果状态为空，尝试从响应中查找任何状态指示
+          # 如果还是无法提取，检查响应内容
           if [ -z "$status" ]; then
-            echo "⚠️  无法从响应中提取状态，检查响应内容..."
-            if echo "$response_body" | grep -qi "queued\|active\|deployment"; then
+            if echo "$response_body" | grep -qi "queued\|active"; then
               status="queued"
-              echo "✅ 检测到部署相关响应，假设部署已提交"
             fi
           fi
           
-          if [ "$status" = "queued" ] || [ "$status" = "active" ] || [ "$http_code" = "200" ]; then
+          echo "📊 部署状态: ${status:-已提交}"
+          
+          # 成功条件：HTTP 200 且没有错误
+          if [ "$http_code" = "200" ] && [ -n "$response_body" ]; then
             echo ""
             echo "✅ 部署请求已成功提交！"
-            echo "🌐 应用 URL: ${url:-https://ember-chat.ai-builders.space/}"
+            echo "🌐 应用 URL: https://ember-chat.ai-builders.space/"
             echo "⏳ 请等待 5-10 分钟让部署完成"
-            echo ""
-            echo "📝 你可以在以下链接查看部署状态:"
-            echo "   https://ember-chat.ai-builders.space/"
-            # 即使状态解析失败，如果 HTTP 200 也认为成功
-            if [ "$http_code" = "200" ]; then
-              echo "✅ HTTP 200 响应，部署请求已接受"
-            fi
+            exit 0
           else
-            echo "❌ 部署失败，状态: ${status:-未知}"
-            echo "HTTP 状态码: ${http_code}"
-            echo "完整响应: ${response_body}"
+            echo "❌ 部署失败"
+            echo "HTTP: ${http_code}"
+            echo "响应: ${response_body}"
             exit 1
           fi
 
@@ -110,4 +104,3 @@ jobs:
         if: success()
         run: |
           echo "✅ 部署工作流执行成功"
-          echo "📝 查看部署状态: https://github.com/${{ github.repository }}/actions"
