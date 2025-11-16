@@ -32,6 +32,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Set working directory to the standalone output
+WORKDIR /app
+
 USER nextjs
 
 EXPOSE 3000
